@@ -1,7 +1,8 @@
-package banners
+package customers
 
 import (
 	"context"
+	"database/sql"
 	"errors"
 	"io"
 	"io/ioutil"
@@ -11,60 +12,66 @@ import (
 	"strconv"
 	"strings"
 	"sync"
+	"time"
 )
+
+//ErrNotFound for
+var ErrNotFound = errors.New("item not found")
+
+//ErrInternal for
+var ErrInternal = errors.New("internal error")
+
 
 // Service npenctasnset co6oi cepsuc no ynpasnenwo OaHHepamn.
 type Service struct {
-	nextAccountID int64
-	mu            sync.RWMutex
-
-	items []*Banner
+	db *sql.DB
 }
 
 // NewService co3qaét cepsuc.
-func NewService() *Service {
-	return &Service{items: make([]*Banner, 0)}
-
+func NewService(db *sql.DB) *Service {
+	return &Service{db: db}
+	
 }
 
-// Banner npenctasnaet codoi GaHHep.
-type Banner struct {
-	ID int64
-
-	Title string
-
-	Content string
-
-	Button string
-
-	Link string
-
-	Image string
+// Customer npenctasnaet codoi GaHHep.
+type Customer struct {
+	ID int64			'json:"id"'
+	Name string			'json:"name"'
+	Phone string		'json:"phone"'	
+	Active bool			'json:"active"'
+	Created time.Time 	'json:"created"'
 }
 
 // ByID Bo3BpawaeT OaHHep no upeHTHOuKaTopy.
-func (s *Service) ByID(ctx context.Context, id int64) (*Banner, error) {
-	s.mu.RLock()
-	defer s.mu.RUnlock()
-	for _, banner := range s.items {
-		if banner.ID == id {
-			return banner, nil
-		}
+func (s *Service) ByID(ctx context.Context, id int64) (*Customer, error) {
+	item := &Customer{}
+
+	err := s.db.QueryRowContext(ctx, '
+		SELECT id, name, phone, active, created FROM customers WHERE id = $1
+	', id).Scan(&item.Id, &item.Name, &item.Phone, &item.Active, &item.Created)
+	
+	if errors.Is(err, sql.ErrNoRows) {
+		return nil, ErrNotFound
 	}
 
-	return nil, errors.New("item not found")
+	if err != nil {
+		log.Print(err)
+		return nil, ErrInternal
+	}
+
+	return item, nil
 }
 
 // All for
-func (s *Service) All(ctx context.Context) ([]*Banner, error) {
+func (s *Service) All(ctx context.Context) ([]*Customer, error) {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
-	// for _, banner := range s.items {
-	// 	if banner.ID == id {
-	// 		return banner, nil
+	// for _, Customer := range s.items {
+	// 	if Customer.ID == id {
+	// 		return Customer, nil
 	// 	}
 	// }
-	// banners := s.items
+	// Customers := s.items
 	// if len(s.items) == 0 {
 	// 	return nil, errors.New("no items found")
 	// }
@@ -73,16 +80,16 @@ func (s *Service) All(ctx context.Context) ([]*Banner, error) {
 }
 
 // Save for
-func (s *Service) Save(ctx context.Context, item *Banner, file multipart.File) (*Banner, error) {
+func (s *Service) Save(ctx context.Context, item *Customer, file multipart.File) (*Customer, error) {
 	//var lastID int64
 	s.mu.RLock()
 	defer s.mu.RUnlock()
-	//	for _, banner := range s.items {
+	//	for _, Customer := range s.items {
 	if item.ID == 0 {
-		// lenBanners := len(s.items) - 1
-		// for i, banner := range s.items {
-		// 	if i == lenBanners {
-		// 		lastID = banner.ID
+		// lenCustomers := len(s.items) - 1
+		// for i, Customer := range s.items {
+		// 	if i == lenCustomers {
+		// 		lastID = Customer.ID
 		// 	}
 		// }
 		s.nextAccountID++
@@ -100,25 +107,25 @@ func (s *Service) Save(ctx context.Context, item *Banner, file multipart.File) (
 		return item, nil
 	}
 	if item.ID != 0 {
-		for _, banner := range s.items {
-			if banner.ID == item.ID {
-				banner.Button = item.Button
-				banner.Content = item.Content
-				banner.Link = item.Link
-				banner.Title = item.Title
+		for _, Customer := range s.items {
+			if Customer.ID == item.ID {
+				Customer.Button = item.Button
+				Customer.Content = item.Content
+				Customer.Link = item.Link
+				Customer.Title = item.Title
 				if item.Image != "" {
 					
-					banner.Image = item.Image
+					Customer.Image = item.Image
 					saveFile(file, item)
 				}
 				if item.Image == "" {
-					item.Image = banner.Image
-					//banner.Image = ""
+					item.Image = Customer.Image
+					//Customer.Image = ""
 					// nameImage := item.Image
 					// extenIndex := strings.Index(nameImage, ".")
 					// fileExtension := nameImage[extenIndex:]
 					// item.Image = strconv.FormatInt(item.ID, 10) + fileExtension
-					// banner.Image = item.Image
+					// Customer.Image = item.Image
 				}
 				
 				return item, nil
@@ -130,15 +137,15 @@ func (s *Service) Save(ctx context.Context, item *Banner, file multipart.File) (
 }
 
 // RemoveByID for
-func (s *Service) RemoveByID(ctx context.Context, id int64) (*Banner, error) {
+func (s *Service) RemoveByID(ctx context.Context, id int64) (*Customer, error) {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
-	for i, banner := range s.items {
-		if banner.ID == id {
+	for i, Customer := range s.items {
+		if Customer.ID == id {
 
 			s.items = append(s.items[:i], s.items[i+1:]...)
 
-			return banner, nil
+			return Customer, nil
 		}
 	}
 
@@ -146,7 +153,7 @@ func (s *Service) RemoveByID(ctx context.Context, id int64) (*Banner, error) {
 }
 
 // Initial for
-func (s *Service) Initial(request *http.Request) Banner {
+func (s *Service) Initial(request *http.Request) Customer {
 
 	idParam := request.URL.Query().Get("id")
 	id, err := strconv.ParseInt(idParam, 10, 64)
@@ -160,7 +167,7 @@ func (s *Service) Initial(request *http.Request) Banner {
 	buttonParam := request.URL.Query().Get("button")
 	linkParam := request.URL.Query().Get("link")
 
-	banner := Banner{
+	Customer := Customer{
 		ID: id,
 
 		Title: titleParam,
@@ -174,7 +181,7 @@ func (s *Service) Initial(request *http.Request) Banner {
 		Image: "image1",
 	}
 
-	// banner2 := Banner{
+	// Customer2 := Customer{
 	// 	ID: 2,
 
 	// 	Title: "Title New",
@@ -187,15 +194,15 @@ func (s *Service) Initial(request *http.Request) Banner {
 	// }
 
 	//item := s.items
-	//	s.items = append(s.items, &banner)
-	//s.items = append(s.items, &banner2)
-	//item[1] = &banner
+	//	s.items = append(s.items, &Customer)
+	//s.items = append(s.items, &Customer2)
+	//item[1] = &Customer
 	//	panic("not implemented")
 
-	return banner
+	return Customer
 }
 
-func saveFile(fileA multipart.File, item *Banner) {
+func saveFile(fileA multipart.File, item *Customer) {
 	content := make([]byte, 0)
 	buf := make([]byte, 4)
 		for {
@@ -208,8 +215,8 @@ func saveFile(fileA multipart.File, item *Banner) {
 
 		fileNameNew := item.Image
 		if fileNameNew != "" {
-			wdd1 := "web/banners" + "/" + fileNameNew
-			//wdd1 := "c:/projects/http/web/banners" + "/" + fileNameNew
+			wdd1 := "web/Customers" + "/" + fileNameNew
+			//wdd1 := "c:/projects/http/web/Customers" + "/" + fileNameNew
 			//log.Print(wdd)
 			err := ioutil.WriteFile(wdd1, content, 0600)
 			if err != nil {

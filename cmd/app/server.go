@@ -11,20 +11,20 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/Iftikhor99/gosql/pkg/banners"
+	"github.com/Iftikhor99/gosql/pkg/customers"
 )
 
 // Server npegctasnseT coOow normyeckwi CepBep Hawero npunomeHna.
 type Server struct {
 	mux *http.ServeMux
 
-	bannersSvc *banners.Service
+	customersSvc *customers.Service
 }
 
 // NewServer - OyHKUMA-KOHCTpykTOp pina co3maHna cepsepa.
-func NewServer(mux *http.ServeMux, bannersSvc *banners.Service) *Server {
+func NewServer(mux *http.ServeMux, customersSvc *customers.Service) *Server {
 
-	return &Server{mux: mux, bannersSvc: bannersSvc}
+	return &Server{mux: mux, customersSvc: customersSvc}
 
 }
 
@@ -37,16 +37,16 @@ func (s *Server) ServeHTTP(writer http.ResponseWriter, request *http.Request) {
 
 // Init wHmunannsupyet cepsep (permctpupyet sce Handler's)
 func (s *Server) Init() {
-	s.mux.HandleFunc("/banners.getAll", s.handleGetAllBanners)
-	//	s.mux.HandleFunc("/banners.getById", s.handleGetBannerByID)
-	s.mux.HandleFunc("/banners.save", s.handleSaveBanner)
+	s.mux.HandleFunc("/customers.getAll", s.handleGetAllcustomers)
+	//	s.mux.HandleFunc("/customers.getById", s.handleGetBannerByID)
+	s.mux.HandleFunc("/customers.save", s.handleSaveBanner)
 
-	s.mux.HandleFunc("/banners.removeById", s.handleRemoveByID)
-	s.mux.HandleFunc("/banners.getById", s.handleGetPostByID)
+	s.mux.HandleFunc("/customers.removeById", s.handleRemoveByID)
+	s.mux.HandleFunc("/customers.getById", s.handleGetCustomerByID)
 
 }
 
-func (s *Server) handleGetPostByID(writer http.ResponseWriter, request *http.Request) {
+func (s *Server) handleGetCustomerByID(writer http.ResponseWriter, request *http.Request) {
 
 	idParam := request.URL.Query().Get("id")
 
@@ -58,7 +58,7 @@ func (s *Server) handleGetPostByID(writer http.ResponseWriter, request *http.Req
 		return
 	}
 
-	item, err := s.bannersSvc.ByID(request.Context(), id)
+	item, err := s.customersSvc.ByID(request.Context(), id)
 
 	if err != nil {
 		log.Print(err)
@@ -97,7 +97,7 @@ func (s *Server) handleRemoveByID(writer http.ResponseWriter, request *http.Requ
 		return
 	}
 
-	item, err := s.bannersSvc.RemoveByID(request.Context(), id)
+	item, err := s.customersSvc.RemoveByID(request.Context(), id)
 
 	if err != nil {
 		log.Print(err)
@@ -184,8 +184,8 @@ func (s *Server) handleSaveBanner(writer http.ResponseWriter, request *http.Requ
 	// wd = wd + "/" + idParam + fileExtension
 
 	// fileNameNew := item.Image
-	//wdd := "web/banners" + "/" + strconv.FormatInt(fileN, 10) + fileExtension
-	// wdd := "c:/projects/http/web/banners" + "/" + strconv.FormatInt(fileN, 10) + fileExtension
+	//wdd := "web/customers" + "/" + strconv.FormatInt(fileN, 10) + fileExtension
+	// wdd := "c:/projects/http/web/customers" + "/" + strconv.FormatInt(fileN, 10) + fileExtension
 	// log.Print(wdd)
 	// err = ioutil.WriteFile(wdd, content, 0600)
 	// if err != nil {
@@ -193,7 +193,7 @@ func (s *Server) handleSaveBanner(writer http.ResponseWriter, request *http.Requ
 
 	// }
 	// fileN = fileN + 1
-	// wdd1 := "web/banners" + "/" + strconv.FormatInt(fileN, 10) + fileExtension
+	// wdd1 := "web/customers" + "/" + strconv.FormatInt(fileN, 10) + fileExtension
 	// err = ioutil.WriteFile(wdd1, content, 0600)
 	// if err != nil {
 	// 	log.Print(err)
@@ -211,7 +211,7 @@ func (s *Server) handleSaveBanner(writer http.ResponseWriter, request *http.Requ
 	buttonParam := request.FormValue("button")
 	linkParam := request.FormValue("link")
 
-	banner := banners.Banner{
+	banner := customers.Banner{
 		ID: id,
 
 		Title: titleParam,
@@ -225,7 +225,7 @@ func (s *Server) handleSaveBanner(writer http.ResponseWriter, request *http.Requ
 		Image: fileNameInBanner,
 	}
 
-	//banner := s.bannersSvc.Initial(request)
+	//banner := s.customersSvc.Initial(request)
 
 	//idParam := request.URL.Query().Get("id")
 
@@ -237,7 +237,7 @@ func (s *Server) handleSaveBanner(writer http.ResponseWriter, request *http.Requ
 	// 	return
 	// }
 
-	item, err := s.bannersSvc.Save(request.Context(), &banner, fileA)
+	item, err := s.customersSvc.Save(request.Context(), &banner, fileA)
 
 	if err != nil {
 		log.Print(err)
@@ -269,11 +269,11 @@ func (s *Server) handleGetBannerByID(writer http.ResponseWriter, request *http.R
 	log.Print(request)
 }
 
-func (s *Server) handleGetAllBanners(writer http.ResponseWriter, request *http.Request) {
+func (s *Server) handleGetAllcustomers(writer http.ResponseWriter, request *http.Request) {
 	log.Print(request)
 	log.Print(request.Header)
 	log.Print(request.Body)
-	item, err := s.bannersSvc.All(request.Context())
+	item, err := s.customersSvc.All(request.Context())
 
 	if err != nil {
 		log.Print(err)

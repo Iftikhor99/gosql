@@ -1,1 +1,1 @@
-DROP TABLE managers;
+SELECT * FROM customers;

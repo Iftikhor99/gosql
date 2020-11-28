@@ -9,7 +9,7 @@ import (
 
 	//	"os"
 	"strconv"
-	"strings"
+//	"strings"
 
 	"github.com/Iftikhor99/gosql/pkg/customers"
 )
@@ -37,12 +37,18 @@ func (s *Server) ServeHTTP(writer http.ResponseWriter, request *http.Request) {
 
 // Init wHmunannsupyet cepsep (permctpupyet sce Handler's)
 func (s *Server) Init() {
-	s.mux.HandleFunc("/customers.getAll", s.handleGetAllcustomers)
-	//	s.mux.HandleFunc("/customers.getById", s.handleGetBannerByID)
-	s.mux.HandleFunc("/customers.save", s.handleSaveBanner)
+	 s.mux.HandleFunc("/customers.getAll", s.handleGetAllcustomers)
+	 s.mux.HandleFunc("/customers.getAllActive", s.handleGetAllActivecustomers)
+	// //	s.mux.HandleFunc("/customers.getById", s.handleGetBannerByID)
+	// s.mux.HandleFunc("/customers.save", s.handleSaveBanner)
 
-	s.mux.HandleFunc("/customers.removeById", s.handleRemoveByID)
+	// s.mux.HandleFunc("/customers.removeById", s.handleRemoveByID)
 	s.mux.HandleFunc("/customers.getById", s.handleGetCustomerByID)
+	s.mux.HandleFunc("/customers.blockById", s.handleCustomerblockByID)
+	s.mux.HandleFunc("/customers.unblockById", s.handleCustomerunblockByID)
+	s.mux.HandleFunc("/customers.removeById", s.handleCustomerremoveByID)
+	s.mux.HandleFunc("/customers.save", s.handleSaveCustomer)
+	
 
 }
 
@@ -83,9 +89,83 @@ func (s *Server) handleGetCustomerByID(writer http.ResponseWriter, request *http
 
 }
 
-func (s *Server) handleRemoveByID(writer http.ResponseWriter, request *http.Request) {
+func (s *Server) handleCustomerblockByID(writer http.ResponseWriter, request *http.Request) {
 
-	log.Print(request)
+	idParam := request.URL.Query().Get("id")
+
+	id, err := strconv.ParseInt(idParam, 10, 64)
+
+	if err != nil {
+		log.Print(err)
+		http.Error(writer, http.StatusText(http.StatusBadRequest), http.StatusBadRequest)
+		return
+	}
+
+	item, err := s.customersSvc.BlockByID(request.Context(), id)
+
+	if err != nil {
+		log.Print(err)
+		http.Error(writer, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
+		return
+	}
+
+	data, err := json.Marshal(item)
+
+	if err != nil {
+		log.Print(err)
+		http.Error(writer, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
+		return
+	}
+
+	writer.Header().Set("Content-Type", "application/json")
+	_, err = writer.Write(data)
+
+	if err != nil {
+		log.Print(err)
+	}
+
+}
+
+
+func (s *Server) handleCustomerunblockByID(writer http.ResponseWriter, request *http.Request) {
+
+	idParam := request.URL.Query().Get("id")
+
+	id, err := strconv.ParseInt(idParam, 10, 64)
+
+	if err != nil {
+		log.Print(err)
+		http.Error(writer, http.StatusText(http.StatusBadRequest), http.StatusBadRequest)
+		return
+	}
+
+	item, err := s.customersSvc.UnBlockByID(request.Context(), id)
+
+	if err != nil {
+		log.Print(err)
+		http.Error(writer, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
+		return
+	}
+
+	data, err := json.Marshal(item)
+
+	if err != nil {
+		log.Print(err)
+		http.Error(writer, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
+		return
+	}
+
+	writer.Header().Set("Content-Type", "application/json")
+	_, err = writer.Write(data)
+
+	if err != nil {
+		log.Print(err)
+	}
+
+}
+
+
+func (s *Server) handleCustomerremoveByID(writer http.ResponseWriter, request *http.Request) {
 
 	idParam := request.URL.Query().Get("id")
 
@@ -120,10 +200,49 @@ func (s *Server) handleRemoveByID(writer http.ResponseWriter, request *http.Requ
 		log.Print(err)
 	}
 
-	log.Print(item)
 }
 
-func (s *Server) handleSaveBanner(writer http.ResponseWriter, request *http.Request) {
+// func (s *Server) handleRemoveByID(writer http.ResponseWriter, request *http.Request) {
+
+// 	log.Print(request)
+
+// 	idParam := request.URL.Query().Get("id")
+
+// 	id, err := strconv.ParseInt(idParam, 10, 64)
+
+// 	if err != nil {
+// 		log.Print(err)
+// 		http.Error(writer, http.StatusText(http.StatusBadRequest), http.StatusBadRequest)
+// 		return
+// 	}
+
+// 	item, err := s.customersSvc.RemoveByID(request.Context(), id)
+
+// 	if err != nil {
+// 		log.Print(err)
+// 		http.Error(writer, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
+// 		return
+// 	}
+
+// 	data, err := json.Marshal(item)
+
+// 	if err != nil {
+// 		log.Print(err)
+// 		http.Error(writer, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
+// 		return
+// 	}
+
+// 	writer.Header().Set("Content-Type", "application/json")
+// 	_, err = writer.Write(data)
+
+// 	if err != nil {
+// 		log.Print(err)
+// 	}
+
+// 	log.Print(item)
+// }
+
+func (s *Server) handleSaveCustomer(writer http.ResponseWriter, request *http.Request) {
 	//log.Print(request)
 	//log.Print(request.Header)
 	//log.Print(request.Body)
@@ -134,11 +253,9 @@ func (s *Server) handleSaveBanner(writer http.ResponseWriter, request *http.Requ
 	log.Print(request.Header.Get("Content-Type"))
 
 	log.Print(request.FormValue("id"))
-	log.Print(request.FormValue("title"))
-	log.Print(request.FormValue("content"))
-	log.Print(request.FormValue("button"))
-	log.Print(request.FormValue("link"))
-
+	log.Print(request.FormValue("name"))
+	log.Print(request.FormValue("phone"))
+	
 	//log.Print(request.PostFormValue("tags"))
 
 	body, err := ioutil.ReadAll(request.Body)
@@ -154,22 +271,22 @@ func (s *Server) handleSaveBanner(writer http.ResponseWriter, request *http.Requ
 
 	log.Print(request.Form)
 	log.Print(request.PostForm)
-	log.Print(request.FormFile("image"))
-	fileA, fileHeader, _ := request.FormFile("image")
+	//log.Print(request.FormFile("image"))
+	//fileA, fileHeader, _ := request.FormFile("image")
 	idParam := request.FormValue("id")
-	fileNameInBanner := ""
+	//fileNameInBanner := ""
 	
-	if fileA != nil {
-		fileName := fileHeader.Filename
-		log.Print(fileName)
-		extenIndex := strings.Index(fileName, ".")
-		fileExtension := fileName[extenIndex:]
+	// if fileA != nil {
+	// 	fileName := fileHeader.Filename
+	// 	log.Print(fileName)
+	// 	extenIndex := strings.Index(fileName, ".")
+	// 	fileExtension := fileName[extenIndex:]
 
-		//fileA.Read()
-		//content := make([]byte, 0)
+	// 	//fileA.Read()
+	// 	//content := make([]byte, 0)
 		
-		fileNameInBanner = idParam + fileExtension
-	}
+	// 	fileNameInBanner = idParam + fileExtension
+	// }
 	//os.Create()
 	//wd, err := os.Getwd()
 
@@ -206,23 +323,18 @@ func (s *Server) handleSaveBanner(writer http.ResponseWriter, request *http.Requ
 
 	}
 
-	titleParam := request.FormValue("title")
-	contentParam := request.FormValue("content")
-	buttonParam := request.FormValue("button")
-	linkParam := request.FormValue("link")
+	nameParam := request.FormValue("name")
+	phoneParam := request.FormValue("phone")
+	// buttonParam := request.FormValue("button")
+	// linkParam := request.FormValue("link")
 
-	banner := customers.Banner{
+	customer := customers.Customer{
 		ID: id,
 
-		Title: titleParam,
+		Name: nameParam,
 
-		Content: contentParam,
-
-		Button: buttonParam,
-
-		Link: linkParam,
-
-		Image: fileNameInBanner,
+		Phone: phoneParam,
+		
 	}
 
 	//banner := s.customersSvc.Initial(request)
@@ -237,7 +349,7 @@ func (s *Server) handleSaveBanner(writer http.ResponseWriter, request *http.Requ
 	// 	return
 	// }
 
-	item, err := s.customersSvc.Save(request.Context(), &banner, fileA)
+	item, err := s.customersSvc.Save(request.Context(), customer)
 
 	if err != nil {
 		log.Print(err)
@@ -265,9 +377,9 @@ func (s *Server) handleSaveBanner(writer http.ResponseWriter, request *http.Requ
 
 }
 
-func (s *Server) handleGetBannerByID(writer http.ResponseWriter, request *http.Request) {
-	log.Print(request)
-}
+// func (s *Server) handleGetBannerByID(writer http.ResponseWriter, request *http.Request) {
+// 	log.Print(request)
+// }
 
 func (s *Server) handleGetAllcustomers(writer http.ResponseWriter, request *http.Request) {
 	log.Print(request)
@@ -296,5 +408,35 @@ func (s *Server) handleGetAllcustomers(writer http.ResponseWriter, request *http
 		log.Print(err)
 	}
 
-	log.Print(item)
+	log.Printf("%#v", item)
+}
+
+func (s *Server) handleGetAllActivecustomers(writer http.ResponseWriter, request *http.Request) {
+	log.Print(request)
+	log.Print(request.Header)
+	log.Print(request.Body)
+	item, err := s.customersSvc.AllActive(request.Context())
+
+	if err != nil {
+		log.Print(err)
+		http.Error(writer, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
+		return
+	}
+
+	data, err := json.Marshal(item)
+
+	if err != nil {
+		log.Print(err)
+		http.Error(writer, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
+		return
+	}
+
+	writer.Header().Set("Content-Type", "application/json")
+	_, err = writer.Write(data)
+
+	if err != nil {
+		log.Print(err)
+	}
+
+	log.Printf("%#v", item)
 }

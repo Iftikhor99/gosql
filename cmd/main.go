@@ -1,15 +1,19 @@
 package main
 
 import (
-	"database/sql"
+	"context"
 	"log"
 	"net"
 	"net/http"
 	"os"
+	"time"
 
 	"github.com/Iftikhor99/gosql/cmd/app"
 	"github.com/Iftikhor99/gosql/pkg/customers"
-	_"github.com/jackc/pgx/v4/stdlib"
+	"github.com/gorilla/mux"
+	"github.com/jackc/pgx/v4/pgxpool"
+	_ "github.com/jackc/pgx/v4/pgxpool"
+	"go.uber.org/dig"
 )
 
 func main() {
@@ -18,41 +22,45 @@ func main() {
 	dsn := "postgres://app:pass@192.168.99.100:5432/db"
 
 	if err := execute(host, port, dsn); err != nil {
-		log.Print("We are here3")
+		log.Print(err)
 		os.Exit(1)
 	}
 
 }
 
 func execute(host string, port string, dsn string) (err error) {
-	db, err := sql.Open("pgx", dsn)
-	if err != nil {
-		log.Print("We are here1")
-		return err
-	} 
-
-	defer func() {
-		if cerr := db.Close(); cerr != nil {
-			if err == nil {
-				err = cerr
-				log.Print("We are here2")
-				return
-			} 
-			log.Print(err)
-			
-		}
-	}()
-
-
-	mux := http.NewServeMux()
-	customersSvc := customers.NewService(db)
-	server := app.NewServer(mux, customersSvc)
-	server.Init()
-	//	bannersSvc.Initial()
-	srv := &http.Server{
-		Addr:    net.JoinHostPort(host, port),
-		Handler: server,
+	deps := []interface{}{
+		app.NewServer,
+		mux.NewRouter,
+		func() (*pgxpool.Pool, error) {
+			ctx, _ := context.WithTimeout(context.Background(), time.Second*5)	
+			return pgxpool.Connect(ctx, dsn)
+		},
+		customers.NewService,
+		func(server *app.Server) *http.Server {
+			return &http.Server{
+				Addr: net.JoinHostPort(host, port),
+				Handler: server,
+			}
+		},
 	}
 
-	return srv.ListenAndServe()
+	container := dig.New()
+	for _, dep := range deps {
+		err = container.Provide(dep)
+		if err != nil {
+			return err
+		}
+	}
+	
+	err = container.Invoke(func(server *app.Server){
+		server.Init() 	
+	})
+	if err != nil {
+		return err
+	}
+
+	return container.Invoke(func(server *http.Server) error {
+		return server.ListenAndServe()
+	})
 }

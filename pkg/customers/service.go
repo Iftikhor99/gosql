@@ -2,17 +2,19 @@ package customers
 
 import (
 	"context"
-	"database/sql"
+	//	"database/sql"
 	"errors"
-//	"io"
-//	"io/ioutil"
+	//	"io"
+	//	"io/ioutil"
 	"log"
-//	"mime/multipart"
-//	"net/http"
-//	"strconv"
-//	"strings"
-//	"sync"
+	//	"mime/multipart"
+	//	"net/http"
+	//	"strconv"
+	//	"strings"
+	//	"sync"
 	"time"
+	"github.com/jackc/pgx/v4"
+	"github.com/jackc/pgx/v4/pgxpool"
 )
 
 //ErrNotFound for
@@ -27,21 +29,21 @@ var ErrNoRows = errors.New("No rows")
 
 // Service npenctasnset co6oi cepsuc no ynpasnenwo OaHHepamn.
 type Service struct {
-	db *sql.DB
+	pool *pgxpool.Pool
 }
 
 // NewService co3qaét cepsuc.
-func NewService(db *sql.DB) *Service {
-	return &Service{db: db}
+func NewService(pool *pgxpool.Pool) *Service {
+	return &Service{pool: pool}
 	
 }
 
 // Customer npenctasnaet codoi GaHHep.
 type Customer struct {
-	ID int64			`json:"id"`
-	Name string			`json:"name"`
-	Phone string		`json:"phone"`	
-	Active bool			`json:"active"`
+	ID 		int64		`json:"id"`
+	Name 	string		`json:"name"`
+	Phone 	string		`json:"phone"`	
+	Active 	bool		`json:"active"`
 	Created time.Time 	`json:"created"`
 }
 
@@ -49,11 +51,11 @@ type Customer struct {
 func (s *Service) ByID(ctx context.Context, id int64) (*Customer, error) {
 	item := &Customer{}
 
-	err := s.db.QueryRowContext(ctx, `
+	err := s.pool.QueryRow(ctx, `
 		SELECT id, name, phone, active, created FROM customers WHERE id = $1
 	`, id).Scan(&item.ID, &item.Name, &item.Phone, &item.Active, &item.Created)
 	
-	if errors.Is(err, sql.ErrNoRows) {
+	if errors.Is(err, pgx.ErrNoRows) {
 		return nil, ErrNotFound
 	}
 
@@ -70,11 +72,11 @@ func (s *Service) All(ctx context.Context) ([]*Customer, error) {
 	
 	items := make([]*Customer,0)
 
-	rows, err := s.db.QueryContext(ctx, `
+	rows, err := s.pool.Query(ctx, `
 		SELECT id, name, phone, active, created FROM customers
 	`)
 	
-	if errors.Is(err, sql.ErrNoRows) {
+	if errors.Is(err, pgx.ErrNoRows) {
 		log.Print("No rows")
 		return nil, ErrNoRows
 	}
@@ -84,11 +86,7 @@ func (s *Service) All(ctx context.Context) ([]*Customer, error) {
 		return nil, ErrInternal
 	}
 	
-	defer func() {
-		if cerr := rows.Close(); cerr != nil {
-			log.Print(cerr)
-		}
-	}()
+	defer rows.Close()	
 	
 	for rows.Next() {
 		item := &Customer{}
@@ -125,11 +123,11 @@ func (s *Service) AllActive(ctx context.Context) ([]*Customer, error) {
 	
 	items := make([]*Customer,0)
 
-	rows, err := s.db.QueryContext(ctx, `
+	rows, err := s.pool.Query(ctx, `
 		SELECT id, name, phone, active, created FROM customers WHERE active
 	`)
 	
-	if errors.Is(err, sql.ErrNoRows) {
+	if errors.Is(err, pgx.ErrNoRows) {
 		log.Print("No rows")
 		return nil, ErrNoRows
 	}
@@ -139,11 +137,7 @@ func (s *Service) AllActive(ctx context.Context) ([]*Customer, error) {
 		return nil, ErrInternal
 	}
 	
-	defer func() {
-		if cerr := rows.Close(); cerr != nil {
-			log.Print(cerr)
-		}
-	}()
+	defer rows.Close()
 	
 	for rows.Next() {
 		item := &Customer{}
@@ -183,11 +177,11 @@ func (s *Service) BlockByID(ctx context.Context, id int64) (*Customer, error) {
 
 //	items := make([]*Customer,0)
 
-	err := s.db.QueryRowContext(ctx, `
+	err := s.pool.QueryRow(ctx, `
 		UPDATE customers SET active = $2 WHERE id = $1 RETURNING id, name, phone, active, created
 	`, id, active).Scan(&item.ID, &item.Name, &item.Phone, &item.Active, &item.Created)
 		
-	if errors.Is(err, sql.ErrNoRows) {
+	if errors.Is(err, pgx.ErrNoRows) {
 		log.Print("No rows")
 		return nil, ErrNoRows
 	}
@@ -223,11 +217,11 @@ func (s *Service) UnBlockByID(ctx context.Context, id int64) (*Customer, error) 
 
 //	items := make([]*Customer,0)
 
-	err := s.db.QueryRowContext(ctx, `
+	err := s.pool.QueryRow(ctx, `
 		UPDATE customers SET active = $2 WHERE id = $1 RETURNING id, name, phone, active, created
 	`, id, active).Scan(&item.ID, &item.Name, &item.Phone, &item.Active, &item.Created)
 		
-	if errors.Is(err, sql.ErrNoRows) {
+	if errors.Is(err, pgx.ErrNoRows) {
 		log.Print("No rows")
 		return nil, ErrNoRows
 	}
@@ -249,11 +243,11 @@ func (s *Service) RemoveByID(ctx context.Context, id int64) (*Customer, error) {
 
 //	items := make([]*Customer,0)
 
-	err := s.db.QueryRowContext(ctx, `
+	err := s.pool.QueryRow(ctx, `
 		DELETE FROM customers WHERE id = $1 RETURNING id, name, phone, active, created
 	`, id).Scan(&item.ID, &item.Name, &item.Phone, &item.Active, &item.Created)
 		
-	if errors.Is(err, sql.ErrNoRows) {
+	if errors.Is(err, pgx.ErrNoRows) {
 		log.Print("No rows")
 		return nil, ErrNoRows
 	}
@@ -275,11 +269,11 @@ func (s *Service) Save(ctx context.Context, itemCustomer Customer) (*Customer, e
 
 	if itemCustomer.ID == 0 {
 	
-		err := s.db.QueryRowContext(ctx, `
+		err := s.pool.QueryRow(ctx, `
 		INSERT INTO customers(name, phone) VALUES($1, $2) RETURNING id, name, phone, active, created
 		`, itemCustomer.Name, itemCustomer.Phone).Scan(&item.ID, &item.Name, &item.Phone, &item.Active, &item.Created)
 		
-		if errors.Is(err, sql.ErrNoRows) {
+		if errors.Is(err, pgx.ErrNoRows) {
 			log.Print("No rows")
 			return nil, ErrNoRows
 		}
@@ -300,11 +294,11 @@ func (s *Service) Save(ctx context.Context, itemCustomer Customer) (*Customer, e
 	
 	if itemCustomer.ID != 0 {
 		
-		err := s.db.QueryRowContext(ctx, `
+		err := s.pool.QueryRow(ctx, `
 		UPDATE customers SET name = $2, phone = $3 WHERE id = $1 RETURNING id, name, phone, active, created
 		`, itemCustomer.ID, itemCustomer.Name, itemCustomer.Phone).Scan(&item.ID, &item.Name, &item.Phone, &item.Active, &item.Created)
 		
-		if errors.Is(err, sql.ErrNoRows) {
+		if errors.Is(err, pgx.ErrNoRows) {
 			log.Print("No rows")
 			return nil, ErrNoRows
 		}

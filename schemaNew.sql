@@ -1,0 +1,35 @@
+CREATE TABLE unites
+(
+    id BIGSERIAL PRIMARY KEY,
+    name TEXT NOT NULL,
+    meter FLOAT NOT NULL CHECK ( meter > 0),
+    comment TEXT,
+    created TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE voter
+(
+    id BIGSERIAL PRIMARY KEY,
+    name TEXT NOT NULL,
+    created TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE candidate
+(
+    id BIGSERIAL PRIMARY KEY,
+    name TEXT NOT NULL,
+    created TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE votes
+(
+    id BIGSERIAL PRIMARY KEY,
+    voter_id BIGINT NOT NULL REFERENCES voter,
+    candidate_id BIGINT NOT NULL REFERENCES candidate,
+    created TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+
+-- drop TABLE unites;
+-- drop TABLE votes;
+-- drop TABLE voter;
+-- drop TABLE candidate;

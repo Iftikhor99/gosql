@@ -10,5 +10,6 @@
             "username": "app",
             "password": "pass"
         }
-    ]
+    ],
+    "liveServer.settings.port": 5501
 }
